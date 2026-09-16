@@ -42,6 +42,13 @@ platform-appropriate fallbacks; opaque `ColorValue` objects are not strings.
 A TypeScript cast does not convert them for a string-only image or animation API.
 Use a supported resolved/static color at that boundary, and check theme changes.
 
+When using Expo Router's Android dynamic colors, the consuming component must
+respond to theme changes, for example by calling `useColorScheme()`, even if it
+does not use the returned value. This matters with React Compiler memoization.
+See the [SDK 57 Color guidance](https://docs.expo.dev/versions/v57.0.0/sdk/router/color/#colorcolor)
+and match it to the installed SDK. Verify a light/dark switch while the screen
+remains mounted; separate launches in each theme can miss stale colors.
+
 Use shadows, gradients, blur, and glass only where they help hierarchy or legibility.
 Their runtime support varies by SDK, OS, and architecture; retain a supported
 fallback rather than replacing working styling with an unsupported effect.

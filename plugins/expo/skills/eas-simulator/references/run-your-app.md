@@ -4,7 +4,7 @@ The remote sim boots blank. You install a **simulator-targeted** build onto the 
 
 In all modes, the session is started the same way and driven through `npx --yes eas-cli@latest simulator:exec`. Replace `dev.example.app` with the app's iOS `bundleIdentifier` (from `app.json` → `ios.bundleIdentifier`), and run from the project directory.
 
-> These sequences are **iOS**. For **Android**: build via `npx --yes eas-cli@latest build --platform android` (or local Gradle), `install` the `.apk` instead of an `.app`, and skip `pod install`. Current simulator session types include a web preview, though Android support is still in development and may lack iOS parity.
+> These sequences are **iOS**. For **Android**, reuse a suitable supplied APK or select an existing profile that produces one (`android.buildType: "apk"` or a compatible internal/development profile), then run `npx --yes eas-cli@latest build --platform android --profile <apk-profile>` if a build is needed. Verify the artifact is an `.apk`; a production `.aab` is not directly installable on the emulator. Live Metro iteration also requires a development client. Install the APK instead of an `.app` and skip `pod install`. Current session types include a web preview, though Android may lack iOS parity.
 
 ## Starting a session (shared by all modes)
 

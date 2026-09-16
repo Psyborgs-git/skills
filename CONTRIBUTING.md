@@ -151,6 +151,12 @@ actually exercised; structural checks and instruction walkthroughs are not evide
 of measured model performance. Preserve upstream sync ownership (for example,
 `expo-animation`) rather than silently forking imported instructions.
 
+Follow the actual retrieval path into references, including unchanged ones: a safe
+root does not repair a contradictory example later. When removing a tutorial,
+check that its non-obvious integration constraints still have a discoverable home.
+For harnesses that inject only a file prefix, inspect what guidance and links are
+missing until the agent continues reading.
+
 ### 7. Add the Codex agent file
 
 Add `agents/openai.yaml` with `display_name`, `short_description` (paid skills prefix it

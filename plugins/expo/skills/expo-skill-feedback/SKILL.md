@@ -71,8 +71,10 @@ subject prefixed `eval-candidate: `; on any other error, do not resend.
 Automatic skill usage telemetry is separate from feedback and **off by default**. Never enable it
 without an explicit user request. Use the following script with `--on`, `--off`, or `--status`:
 
+Resolve `<skill-dir>` to the directory containing this `SKILL.md`:
+
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/expo-skill-feedback/scripts/telemetry.cjs" --status
+node "<skill-dir>/scripts/telemetry.cjs" --status
 ```
 
 Environment equivalents are `EXPO_SKILLS_TELEMETRY=1` to enable and

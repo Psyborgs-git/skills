@@ -34,8 +34,8 @@ const { getDefaultConfig } = require("expo/metro-config");
 const config = getDefaultConfig(__dirname);
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  // Force 'three' to webgpu build
-  if (moduleName.startsWith("three")) {
+  // Redirect only the package root; preserve three/tsl and addon subpaths.
+  if (moduleName === "three") {
     moduleName = "three/webgpu";
   }
 
@@ -412,28 +412,18 @@ function Particles({ count = 500 }) {
 }
 ```
 
-## Touch Controls (Orbit)
+## Touch controls require a native event bridge
 
-See the full `orbit-controls.tsx` implementation in the lib files. Usage:
+This recipe supplies the renderer and canvas helpers, **not** an
+`orbit-controls.tsx` implementation. Add orbit controls only when the requested
+scene needs them. Reuse a working native-compatible controller or implement a
+bridge for the installed Three.js, gesture, and canvas stack.
 
-```tsx
-import { View } from "react-native";
-import { FiberCanvas } from "@/lib/fiber-canvas";
-import useControls from "@/lib/orbit-controls";
-
-function Scene() {
-  const [OrbitControls, events] = useControls();
-
-  return (
-    <View style={{ flex: 1 }} {...events}>
-      <FiberCanvas style={{ flex: 1 }}>
-        <OrbitControls />
-        {/* Your 3D content */}
-      </FiberCanvas>
-    </View>
-  );
-}
-```
+The canvas adapter above has no-op DOM event methods. Importing web OrbitControls
+alone does not connect native touch events to the camera. Wire actual native
+pan/pinch events, coordinate conversion, and camera updates, then verify gestures
+and cleanup on-device. Treat the interaction layer as unfinished until that path
+works; do not import a nonexistent `@/lib/orbit-controls` file.
 
 ## Common Issues & Solutions
 
@@ -514,8 +504,7 @@ src/
 │   └── game.tsx            # Game logic
 └── lib/
     ├── fiber-canvas.tsx    # R3F canvas wrapper
-    ├── make-webgpu-renderer.ts  # WebGPU renderer
-    └── orbit-controls.tsx  # Touch controls
+    └── make-webgpu-renderer.ts  # WebGPU renderer
 ```
 
 ## Decision Tree
@@ -528,9 +517,9 @@ Need 3D graphics?
 ├── Particles → Points + BufferGeometry
 │
 Need interaction?
-├── Orbit camera → useControls hook
-├── Touch objects → onClick on mesh
-├── Gestures → react-native-gesture-handler
+├── Orbit camera → add a native-compatible camera/event bridge
+├── Touch objects → wire native pointer coordinates to picking
+├── Gestures → connect native gesture events to scene updates
 │
 Performance critical?
 ├── Static geometry → useMemo

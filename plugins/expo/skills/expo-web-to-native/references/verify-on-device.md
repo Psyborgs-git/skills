@@ -33,9 +33,9 @@ agent-browser screenshot web.png   # visual reference
 **Tip:** reuse captured baselines for the selected routes while the source and test data remain unchanged.
 
 **B. Capture the native screen** (iOS shown via `simctl`; Android note below):
-1. Run the app: `npx expo start --ios` (Expo Go). On **SDK 56+ both `@expo/ui` and DOM components run in Expo Go** — no dev build, no `react-native-webview` to install; reach for a dev build (the `expo-dev-client` skill) only for *custom* native modules. Stale-bundle trap: a CI-mode Metro + cached Expo Go can show an old build — terminate Expo Go and add `--clear` if a change doesn't appear.
+1. Run the app in its existing Expo Go or development-build workflow. Expo Go works only when its SDK and bundled native dependencies support the selected features; any missing native library or native configuration can require a development build, not just a custom module. Use `expo-dev-client` to resolve that boundary. For stale code, first verify the running binary and Metro project; restart that app or clear the relevant Metro cache only when needed.
 2. Boot a sim: `xcrun simctl boot <udid>` (`xcrun simctl list devices available`); `open -a Simulator`.
-3. Open the route: deep-link `xcrun simctl openurl booted "exp://<lan-ip>:8081/--/<route>?<params>"`, or argent `launch-app` + `gesture-tap`.
+3. Open the route in the selected binary. For Expo Go, use `xcrun simctl openurl <udid> "exp://<lan-ip>:8081/--/<route>?<params>"`. For a development build, use that app's configured scheme or development launcher and then navigate to the route; the Expo Go `exp://` URL does not select the development app. Keep the route parameters equivalent to the web baseline.
 4. Capture: `xcrun simctl io booted screenshot native.png`, or `argent run describe --udid <udid>` for structure.
 
 > **Android:** `simctl` / `expo run:ios` are iOS-only. Use an Android emulator + `adb` — `adb exec-out screencap -p > native.png`, `adb shell am start -a android.intent.action.VIEW -d "<deep-link>"`, `adb shell screenrecord` for motion — or `npx expo run:android` for a dev build.

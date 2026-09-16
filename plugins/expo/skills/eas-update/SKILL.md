@@ -126,7 +126,7 @@ Never bypass a compatibility or anti-bricking safeguard merely to make an update
 ## Advanced and adjacent workflows
 
 - **Channel surfing:** an individual release build can override its `expo-channel-name` request header to request another compatible channel. This differs from changing the server-side channel-to-branch mapping. Follow https://docs.expo.dev/eas-update/channel-surfing.md and preserve its access-control, persistence, recovery, and compatibility constraints.
-- **Update health:** load `eas-update-insights` for adoption, launch failures, crash rate, payload size, and rollout monitoring after publishing.
+- **Update health:** load `eas-update-insights` for adoption, update delivery/recovery failure signals, payload size, and rollout assessment. These signals are not comprehensive app crash rates.
 - **Store releases:** load `eas-app-stores` when native changes require a new TestFlight, App Store, or Play Store build.
 
 ## Official references
