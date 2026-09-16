@@ -38,10 +38,10 @@ jobs:
     outputs:
       summary: ${{ steps.summary.outputs.summary }}
     env:
-      FOCUSED_EXPERIMENT: ${{ inputs.experiment }}
-      FOCUSED_CASE: ${{ inputs.case_id }}
-      FOCUSED_SPLIT: ${{ inputs.split }}
-      FOCUSED_REPETITIONS: ${{ inputs.repetitions }}
+      FOCUSED_EXPERIMENT: ${{ inputs.experiment || 'catalog-value' }}
+      FOCUSED_CASE: ${{ inputs.case_id || 'signal' }}
+      FOCUSED_SPLIT: ${{ inputs.split || 'development' }}
+      FOCUSED_REPETITIONS: ${{ toJSON(inputs.repetitions || 3) }}
       SKILL_EVAL_REMOTE: '1'
       CI: '1'
     steps:
