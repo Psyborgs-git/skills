@@ -8,7 +8,7 @@ allowed-tools: "Bash(npx *eas-cli@*), Bash(npx *agent-device@*), Bash(npx expo *
 
 # EAS Simulator
 
-> **EAS service - costs apply.** Remote sessions consume the project's EAS allowance. Check [current plan limits](https://expo.dev/pricing) and account availability before starting.
+> **EAS service - costs apply.** EAS Simulator is a hosted EAS service. Session usage is subject to your account's pricing and limits. See https://expo.dev/pricing for current terms.
 
 Use a remote iOS simulator or Android emulator when the user requests cloud access,
 a shareable preview, or device verification unavailable locally. Check the target
@@ -17,11 +17,18 @@ not guarantee an installed iOS simulator. Preserve an explicit local/remote choi
 For an ambiguous local-simulator request, inspect local options before proposing a
 paid cloud session. Do not repeat a cloud-choice question already answered.
 
+When the user requests EAS Simulator or a cloud simulator, proceed within that
+request and any stated budget. Explain applicable usage once and carry existing
+authorization through the session. Ask before exceeding a stated budget or
+expanding beyond the requested work.
+
 ## Establish access and session ownership
 
 The `simulator:*` commands are experimental/hidden. Use a CLI version supporting
-them; examples use `npx --yes eas-cli@latest`. Current command help is authoritative
-when a tested sequence differs. Use existing authentication/project linking; do
+them; examples use `npx --yes eas-cli@latest`. Read the relevant subcommand's
+`--help` before using non-default start flags, machine-readable/config output,
+list filters, or session events; it is authoritative when a tested sequence differs.
+Use existing authentication/project linking; do
 not invent a bundle ID or create a remote project solely to explain these commands.
 
 Before starting, run the read-only availability check from the intended project:
@@ -61,22 +68,27 @@ and bundled JS as well as native compatibility; a native fingerprint alone canno
 prove that the embedded JavaScript includes today's edits. A user-requested old
 artifact remains the correct target when reproducing that release.
 
+Before starting a Mode C tunnel, read [Tunnel scope and approvals](./references/run-your-app.md#tunnel-scope-and-approvals)
+for its data flow, authorization context, and handling approval rejections.
+
 ## Run, inspect, clean up
 
 Start a named session for the task, confirm `IN_PROGRESS` and usable connection
 configuration with `simulator:get`, install the chosen artifact, then drive it.
 `simulator:exec` loads connection settings and invokes a controller; device actions
-come from `agent-device` or `argent`, not `simulator:tap`. See
+come from `agent-device`, Appium, or `argent`, not `simulator:tap`. See
 [controller commands](./references/controllers.md) for supported verbs.
 
 Give the session a short descriptive name, such as `Checkout failure repro`.
-Omit `--json` on `start` for the dotenv-based `exec` flow: in the tested CLI,
-`start --json` returns connection data without writing the file. Use explicit
-connection handling if choosing that path.
+The default `--out-config-type dotenv` writes `.env.eas-simulator`; `--json`
+changes stdout and implies non-interactive mode but does not suppress that write.
+Use `--out-config-type env` and explicit connection handling when no file should
+be written. Use `simulator:list` for session filters/pagination and
+`simulator:events` for recorded activity; consult their help for current options.
 
 Poll the existing session with a bounded timeout instead of starting another for a
 slow boot. If the connection is unusable, inspect cwd/session/build/Metro identity,
-then reset this task's resources and retry once. On another failure, stop the billed
+then reset this task's resources and retry once. On another failure, stop the
 session and report the blocker. After a timed-out action, inspect state before
 retrying an action that may already have executed.
 
@@ -84,13 +96,23 @@ Capture screenshots for static state; record and inspect motion when verifying
 transitions or gestures. A low-frame-rate recording cannot prove 60/120 Hz timing.
 Keep results tied to the actual build and device. Use
 [troubleshooting](./references/troubleshooting.md) for concrete known failures.
+If a controller cannot download a recording, retrieve it from
+[EAS session artifacts](./references/controllers.md#recording-download-recovery).
 
 ### Watch it live
 
-The iOS `webPreviewUrl` is for the user's browser, never an app deep link and never
+The `webPreviewUrl` is for the user's browser, never an app deep link and never
 a controller `open` argument sent to the simulator. Use an available user-browser
-surface if requested, otherwise provide the URL. Android preview availability and
-controller behavior depend on the current service; verify before promising one.
+surface if requested, otherwise provide the URL. Current session types include a
+browser preview; `agent-device`, `appium`, and `argent` also provide automation,
+while `web-preview-only` has no automation interface. Android support is still
+developing and may lack iOS parity; verify the requested behavior.
+
+### Session lifetime
+
+- `--max-duration-minutes N` is the hard automatic-stop deadline. Customize it when supported by the account; otherwise use the service's default session limit.
+- `--max-idle-time-minutes N` stops a session after that many inactive minutes. Omitted means no idle timeout; the maximum duration or an explicit stop still applies.
+- Only activity reported through `agent-device` and `argent` resets the idle timer. Appium commands and browser-preview activity do not. Bound Appium and user-driven previews by maximum duration, and report the CLI's actual duration or expiry.
 
 Keep a session alive only for an intended live preview/interaction. State its
 lifetime and stop procedure; use `--max-duration-minutes` when supported by the plan.
