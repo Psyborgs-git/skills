@@ -27,4 +27,3 @@ Apply the rules that match the project and the requested task.
 - **EAS auth & linking** (when using remote EAS services, including hosting/simulator): check
   login with `eas whoami`; authenticate only when the requested operation needs it. A project is linked when
   `extra.eas.projectId` exists in the app config; use `eas init` if linking is needed and authorized. Writing local workflow YAML alone does not require login or project creation.
-

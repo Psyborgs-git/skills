@@ -34,7 +34,7 @@ for i in $(seq 1 64); do
 done
 ```
 
-If you need the id explicitly, it's `EAS_SIMULATOR_SESSION_ID` in `.env.eas-simulator`. `start` also prints a `webPreviewUrl` (iOS-only browser preview — surface it per the SKILL.md "Watch it live" rules) and a job-run URL. Once live, the session env is in `.env.eas-simulator`, so `simulator:exec` works.
+If you need the id explicitly, it's `EAS_SIMULATOR_SESSION_ID` in `.env.eas-simulator`. `start` also prints a `webPreviewUrl` (browser preview — surface it per the SKILL.md "Watch it live" rules) and a job-run URL. Once live, the session env is in `.env.eas-simulator`, so `simulator:exec` works.
 
 ## Targeting a device — iPad, or several at once
 
@@ -108,7 +108,7 @@ npx --yes eas-cli@latest build:list --platform ios --profile <your-sim-profile> 
 
 If that source and compatibility evidence matches the requested target, skip to step 3 with its artifact URL. A native fingerprint match alone is insufficient for static JS freshness.
 
-⚠️ **Order matters:** build FIRST, `start` the session LAST. The build takes ~15-20 min and a session left idle that long times out (`ERR_NGROK_3200`) — don't `start` until you have the artifact URL.
+**Build before starting the session.** Wait for the artifact URL so the build does not consume remote session lifetime or hit a configured idle or maximum-duration limit. Omitting the idle-timeout flag means no idle timeout; the maximum duration still applies.
 
 ```bash
 # 1. Find or create a simulator build profile in eas.json.
