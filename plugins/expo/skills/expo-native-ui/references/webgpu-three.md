@@ -1,8 +1,8 @@
 # WebGPU & Three.js for Expo
 
-**Use this skill for ANY 3D graphics, games, GPU compute, or Three.js features in React Native.**
+Use this reference for the WebGPU/Three.js integration described below. Preserve an existing working rendering stack when it fits the requested GPU feature.
 
-## Locked Versions (Tested & Working)
+## Tested compatibility snapshot
 
 ```json
 {
@@ -14,7 +14,7 @@
 }
 ```
 
-**Critical:** These versions are tested together. Mismatched versions cause type errors and runtime issues.
+These versions were tested together for this recipe; they are not a mandate to downgrade an existing project. Check the installed SDK, peer requirements, and current upstream support before adopting or updating the combination.
 
 ## Installation
 
@@ -22,11 +22,11 @@
 npm install react-native-wgpu@^0.4.1 three@0.172.0 @react-three/fiber@^9.4.0 wgpu-matrix@^3.0.2 @types/three@0.172.0 --legacy-peer-deps
 ```
 
-**Note:** `--legacy-peer-deps` may be required due to peer dependency conflicts with canary Expo versions.
+The command above records the original canary-era recipe. Use the project's package manager and a compatible dependency set; do not bypass peer checks by default. Investigate a conflict before choosing a temporary peer-dependency workaround.
 
 ## Metro Configuration
 
-Create `metro.config.js` in project root:
+Merge the required resolver changes into the existing Metro config; preserve other customizations. The following shows the standalone recipe:
 
 ```js
 const { getDefaultConfig } = require("expo/metro-config");

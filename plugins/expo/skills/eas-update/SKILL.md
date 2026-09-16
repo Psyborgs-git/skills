@@ -1,7 +1,7 @@
 ---
 name: eas-update
-description: "EAS service (paid). Configure and use EAS Update for over-the-air JavaScript and asset updates with expo-updates and EAS CLI. Use when setting up OTA updates, running eas update:configure or eas update, publishing to preview/staging/production channels, explaining branches/channels/runtime versions, testing updates, or debugging why an installed build still shows old code. Load for TestFlight, preview, or production updates that do not appear, including questions about cold launches or reopening the app. Not for update health metrics; use eas-update-insights for adoption, crashes, and rollout monitoring."
-version: 1.0.0
+description: "EAS service (paid). Configure, publish, or troubleshoot OTA JavaScript and asset updates, runtime compatibility, channels, and installed builds showing old code. Use eas-update-insights for rollout metrics."
+version: 1.0.1
 license: MIT
 allowed-tools: "Bash(npx expo *), Bash(npx *eas-cli@*), Bash(eas *)"
 ---
@@ -14,7 +14,7 @@ Use EAS Update to deliver compatible JavaScript, styling, and asset changes to i
 
 ## Start with the supported configuration path
 
-Before changing anything, inspect `package.json`, the Expo app config, `eas.json` if present, and whether `ios/` or `android/` are tracked. Use what you find when reviewing the CLI's changes:
+When configuring Update or diagnosing build compatibility, inspect `package.json`, the Expo app config, `eas.json` if present, and whether `ios/` or `android/` are tracked. Use what you find when reviewing the CLI's changes:
 
 - Preserve existing dynamic or platform-specific app configuration.
 - If `eas.json` exists, preserve its profiles and existing channel assignments. The CLI adds a channel matching the profile name only to build profiles that do not already have one.
@@ -72,7 +72,7 @@ Do not change the project's runtime-version policy as an incidental fix. Explain
 
 ## Publish deliberately
 
-Check the current CLI help before relying on remembered flags:
+Check CLI help when authoring a publish command or when available flags differ:
 
 ```bash
 npx eas-cli@latest update --help

@@ -9,12 +9,14 @@ In all modes, the session is started the same way and driven through `npx --yes 
 ## Starting a session (shared by all modes)
 
 ```bash
-# Reset the dotenv first so the new session id isn't masked by an "Overwriting previous session" warning.
-printf '# managed by eas-cli\n' > .env.eas-simulator
+# Inspect any existing session first. Only clear stale state after confirming
+# it belongs to this task and that session has stopped; never overwrite an active
+# or unrelated session. Skip this reset for a new/absent file.
+# printf '# managed by eas-cli\n' > .env.eas-simulator
 
 # Start (no --json, so it writes .env.eas-simulator). It boots the sim + agent-device daemon.
 # --name is required practice: it labels the session in simulator:list/get and on expo.dev.
-# Describe what the run is for, in the user's terms — see "Always name the session" in SKILL.md.
+# Describe what the run is for, in the user's terms — see the session naming guidance in SKILL.md.
 npx --yes eas-cli@latest simulator:start --platform ios --type agent-device --non-interactive \
   --name "Checkout flow screenshots"
 ```
@@ -31,7 +33,7 @@ for i in $(seq 1 64); do
 done
 ```
 
-If you need the id explicitly, it's `EAS_SIMULATOR_SESSION_ID` in `.env.eas-simulator`. `start` also prints a `webPreviewUrl` (iOS-only browser preview — surface it per the SKILL.md "watch it live" rules) and a job-run URL. Once live, the session env is in `.env.eas-simulator`, so `simulator:exec` works.
+If you need the id explicitly, it's `EAS_SIMULATOR_SESSION_ID` in `.env.eas-simulator`. `start` also prints a `webPreviewUrl` (iOS-only browser preview — surface it per the SKILL.md "Watch it live" rules) and a job-run URL. Once live, the session env is in `.env.eas-simulator`, so `simulator:exec` works.
 
 ## Targeting a device — iPad, or several at once
 
@@ -49,7 +51,7 @@ The value must be a device the **remote runner** offers (NOT your local Xcode se
 npx --yes eas-cli@latest simulator:exec npx agent-device@latest devices --json
 ```
 
-Available iOS devices today: iPhone 17 / 17 Pro / 17 Pro Max / 17e / Air, and iPad (A16), iPad Air 11"/13" (M4), iPad mini (A17 Pro), iPad Pro 11"/13" (M5).
+Discover the available devices from the current remote runner; the inventory changes.
 
 **Switch devices mid-session:** a session exposes ~16 sims but boots only one at start. Pass the **controller's** global `--device "<name>"` on `open` (and other verbs) to boot + target another; it stays booted alongside the first, so pass `--device` on each verb to say which it hits.
 
@@ -68,8 +70,9 @@ npx --yes eas-cli@latest simulator:exec npx agent-device@latest open <bundleId> 
 A Release build bundles the JS into the binary, so it renders without Metro. Good for a quick "run my current code on a cloud device" when a Mac toolchain is available.
 
 ```bash
-# 1. Generate native project + build a Release simulator .app
-npx expo prebuild --platform ios          # set ios.bundleIdentifier in app.json first to avoid prompts
+# 1. Use the existing native project, or generate disposable CNG output when needed.
+# Only if native generation is needed for disposable CNG output: npx expo prebuild --platform ios
+# Otherwise preserve the maintained project and build its existing workspace below.
 # pod install can fail on Ruby 4 + CocoaPods with a Unicode/ASCII-8BIT error — fix with a UTF-8 locale:
 ( cd ios && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install )
 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 xcodebuild \
@@ -93,16 +96,16 @@ The `install` here **uploads** the (~90MB) `.app` to the remote daemon over the 
 
 ## Mode B — EAS build (the VM downloads it; no credentials)
 
-**Explicit-only** (see the SKILL.md mode picker): a *static* EAS artifact for CI/sharing, or when the user names an existing EAS build. For no-Mac **live** iteration use Mode C with an EAS dev-client build (see Mode C below), not this. **Simulator builds are unsigned, so EAS asks for no credentials.**
+Choose for a *static* EAS artifact for CI/sharing, or when the user names an existing EAS build. For no-Mac **live** iteration use Mode C with an EAS dev-client build (see Mode C below), not this. **Simulator builds are unsigned, so EAS asks for no credentials.**
 
-⚠️ **Check for an existing build first.** Before triggering a new build, check if a fingerprint-matched one already exists — it saves ~15-20 min:
+⚠️ **Check for an existing build first.** Before triggering a new build, check for an artifact matching the intended source/commit and embedded JavaScript, plus native compatibility:
 
 ```bash
 npx --yes eas-cli@latest build:list --platform ios --profile <your-sim-profile> --status finished --json | \
-  head -20   # <your-sim-profile> = the profile you find/create in step 1; look for one whose fingerprint matches current source
+  head -20   # <your-sim-profile> = the profile you find/create in step 1; verify the intended source and bundled JS, not just the native fingerprint
 ```
 
-If one matches, skip straight to step 3 with its artifact URL.
+If that source and compatibility evidence matches the requested target, skip to step 3 with its artifact URL. A native fingerprint match alone is insufficient for static JS freshness.
 
 ⚠️ **Order matters:** build FIRST, `start` the session LAST. The build takes ~15-20 min and a session left idle that long times out (`ERR_NGROK_3200`) — don't `start` until you have the artifact URL.
 
@@ -127,7 +130,7 @@ npx --yes eas-cli@latest simulator:exec npx agent-device@latest screenshot ./sho
 npx --yes eas-cli@latest simulator:stop          # omit --id → stops the dotenv session
 ```
 
-**Build freshness:** reuse only a build whose **fingerprint matches current source** (`npx --yes eas-cli@latest build:list --platform ios --json`, or `get-build` by fingerprint per Callstack's public `eas-agent-device` workflow); otherwise **rebuild** or use Mode C. Tell the user which build you used. (Why this matters → SKILL.md "Reusing an existing build" caveat.)
+**Build freshness:** reuse only a build whose **source/commit and embedded JS match the intended revision, with compatible native configuration** (`npx --yes eas-cli@latest build:list --platform ios --json`, plus build metadata or artifact provenance); otherwise **rebuild** or use Mode C. Tell the user which build you used. See the build contract in SKILL.md.
 
 ---
 
@@ -142,7 +145,7 @@ The agentic edit-and-see loop: a **dev (Debug) build** loads JS from your **Metr
 
 ### Get a dev-client build (either method needs one)
 
-- **Local (Mac):** `npx expo install expo-dev-client`; `npx expo prebuild --platform ios --clean` (set `ios.bundleIdentifier` first); `( cd ios && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install )`; then `xcodebuild -workspace ios/<App>.xcworkspace -scheme <App> -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build-debug build` → `ios/build-debug/Build/Products/Debug-iphonesimulator/<App>.app`. A local `.app` → **Method 2 only**.
+- **Local (Mac):** `npx expo install expo-dev-client`; generate native output only if needed and known to be disposable CNG output (preserve existing native projects and bundle identity); `( cd ios && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install )`; then `xcodebuild -workspace ios/<App>.xcworkspace -scheme <App> -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build-debug build` → `ios/build-debug/Build/Products/Debug-iphonesimulator/<App>.app`. A local `.app` → **Method 2 only**.
 - **EAS (no Mac, or to use Method 1):** ensure a profile with `developmentClient: true` + `ios.simulator: true`, then `npx --yes eas-cli@latest build --platform ios --profile <dev-sim> --non-interactive`. Note the **build id** (Method 1's `--build-id`) or the artifact URL. Reuse a fingerprint-matched build to skip the ~15-20 min.
 
 ### Method 1 — launch at session start (recommended)
