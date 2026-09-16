@@ -61,6 +61,20 @@ class LabelWorkflowTests(unittest.TestCase):
             self.assertIn("0/3 outcomes graded", ci.focused_summary(path))
             self.assertNotIn("0/0", ci.focused_summary(path))
 
+    def test_grader_errors_are_visible_and_not_reported_as_answer_variability(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "summary.json"
+            path.write_text(json.dumps([{"id": "signing-diagnosis", "skill_mode": "without-expo",
+                "outcome_passed": 1, "outcome_failed": 0, "outcome_pending": 0,
+                "outcome_unavailable": 2, "attempted": 3,
+                "judge_errors": [{"attempt": 2, "status": "unavailable", "reason": "Judge quote is not in the answer"},
+                                 {"attempt": 3, "status": "unavailable", "reason": "Judge did not complete"}]}]))
+            text = ci.focused_summary(path)
+            self.assertIn("GRADER ERROR: 2 attempts", text)
+            self.assertIn("0 pending; 2 unavailable", text)
+            self.assertIn("trial 2: grader unavailable — Judge quote is not in the answer", text)
+            self.assertIn("not an agent failure or answer variability", text)
+
     def test_canonical_harness_report_is_copied_into_job_artifact(self):
         ci_script = str(Path(__file__).with_name("ci.sh").resolve())
         with tempfile.TemporaryDirectory() as directory:

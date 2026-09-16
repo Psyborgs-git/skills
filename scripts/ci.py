@@ -324,13 +324,18 @@ def focused_summary(path: Path) -> str:
             return "No focused attempts recorded."
         attempted = sum(row["attempted"] for row in rows)
         graded = sum(row["outcome_passed"] + row["outcome_failed"] for row in rows)
+        judge_errors = sum(len(row.get("judge_errors", [])) for row in rows)
         lines = [f"{graded}/{attempted} outcomes graded. Model judgments are provisional; counts describe this sample."]
+        if judge_errors:
+            lines.append(f"GRADER ERROR: {judge_errors} attempts could not be graded. This is missing evaluation evidence, not an agent failure or answer variability.")
         for row in rows:
             evaluated = row["outcome_passed"] + row["outcome_failed"]
             outcome = f"{row['outcome_passed']}/{evaluated} passed" if evaluated else "Awaiting review / evidence"
             lines.append(f"{row['id']} ({row['skill_mode']}, {row.get('grading', 'unspecified')}): "
                          f"{outcome}; {row['outcome_pending']} pending; {row['outcome_unavailable']} unavailable"
                          + (f"; failing: {', '.join(row['failed_criteria'])}" if row.get("failed_criteria") else ""))
+            for error in row.get("judge_errors", []):
+                lines.append(f"{row['id']} ({row['skill_mode']}) trial {error['attempt']}: grader {error['status']} — {error['reason']}")
         findings_path = path.with_name("findings.json")
         if findings_path.exists():
             for finding in json.loads(findings_path.read_text(encoding="utf-8")):
