@@ -57,7 +57,7 @@ class LabelWorkflowTests(unittest.TestCase):
             self.assertIn("not available", ci.focused_summary(path))
             path.write_text(json.dumps([{"id": "advice", "skill_mode": "with-expo", "outcome_passed": 0,
                 "outcome_failed": 0, "outcome_pending": 3, "outcome_unavailable": 0, "attempted": 3}]))
-            self.assertIn("Awaiting review / evidence; 3 pending", ci.focused_summary(path))
+            self.assertIn("0/3 passed; 3 pending", ci.focused_summary(path))
             self.assertIn("0/3 outcomes graded", ci.focused_summary(path))
             self.assertNotIn("0/0", ci.focused_summary(path))
 
@@ -71,9 +71,26 @@ class LabelWorkflowTests(unittest.TestCase):
                                  {"attempt": 3, "status": "unavailable", "reason": "Judge did not complete"}]}]))
             text = ci.focused_summary(path)
             self.assertIn("GRADER ERROR: 2 attempts", text)
-            self.assertIn("0 pending; 2 unavailable", text)
+            self.assertIn("1/3 passed; 2 unavailable", text)
             self.assertIn("trial 2: grader unavailable — Judge quote is not in the answer", text)
             self.assertIn("not an agent failure or answer variability", text)
+
+    def test_focused_comment_groups_conditions_and_formats_costs_as_markdown(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "summary.json"
+            rows = [{"id": "config", "skill_mode": mode, "outcome_passed": 3, "attempted": 3,
+                     "outcome_failed": 0, "outcome_pending": 0, "outcome_unavailable": 0,
+                     "paired_conditions": "matched", "cost_usd": cost, "median_seconds": 10}
+                    for mode, cost in [("without-expo", 0.2), ("with-expo", 0.3)]]
+            path.write_text(json.dumps(rows))
+            text = ci.focused_summary(path)
+            self.assertIn("| Task | Without Expo skills | With Expo skills | Result |", text)
+            self.assertIn("| config | 3/3 passed | 3/3 passed | Tie in this sample |", text)
+            self.assertIn("$0.200 without", text)
+            self.assertNotIn("<br>", text)
+            rows[1]["paired_conditions"] = "inconclusive"
+            path.write_text(json.dumps(rows))
+            self.assertNotIn("Tie in this sample", ci.focused_summary(path))
 
     def test_canonical_harness_report_is_copied_into_job_artifact(self):
         ci_script = str(Path(__file__).with_name("ci.sh").resolve())

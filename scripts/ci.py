@@ -23,6 +23,7 @@ Run `python3 scripts/ci.py <subcommand> --help` for each one's arguments.
 
 import argparse
 import hashlib
+import html
 import json
 import os
 import subprocess
@@ -315,32 +316,83 @@ def cmd_print_outputs(args: argparse.Namespace) -> None:
 
 
 def focused_summary(path: Path) -> str:
-    """Only evaluated outcomes enter the denominator; pending is never a pass."""
+    """Render a compact comparison; every denominator includes ungraded attempts."""
     if not path.exists():
-        return "Focused pilot not available; see job artifacts."
+        return "Focused evaluation not available; inspect the workflow logs and artifacts."
+    cell = lambda value: html.escape(str(value)).replace("|", "&#124;").replace("\n", " ")
     try:
         rows = json.loads(path.read_text(encoding="utf-8"))
         if not rows:
             return "No focused attempts recorded."
         attempted = sum(row["attempted"] for row in rows)
         graded = sum(row["outcome_passed"] + row["outcome_failed"] for row in rows)
-        judge_errors = sum(len(row.get("judge_errors", [])) for row in rows)
-        lines = [f"{graded}/{attempted} outcomes graded. Model judgments are provisional; counts describe this sample."]
-        if judge_errors:
-            lines.append(f"GRADER ERROR: {judge_errors} attempts could not be graded. This is missing evaluation evidence, not an agent failure or answer variability.")
+        errors = [(row, error) for row in rows for error in row.get("judge_errors", [])]
+        lines = [f"**{graded}/{attempted} outcomes graded.** Pass counts below use all attempted runs.", ""]
+        if errors:
+            lines += [f"**GRADER ERROR: {len(errors)} attempts could not be graded.** This is missing evaluation evidence, not an agent failure or answer variability.", ""]
+        replay = path.with_name("replay.json")
+        if replay.exists():
+            lines += ["**Offline replay of saved judge responses.** No new model calls. The original CI run remains errored; the table reflects corrected evidence validation.", ""]
+        lines += ["| Task | Without Expo skills | With Expo skills | Result |", "|---|---|---|---|"]
+        groups = {}
         for row in rows:
-            evaluated = row["outcome_passed"] + row["outcome_failed"]
-            outcome = f"{row['outcome_passed']}/{evaluated} passed" if evaluated else "Awaiting review / evidence"
-            lines.append(f"{row['id']} ({row['skill_mode']}, {row.get('grading', 'unspecified')}): "
-                         f"{outcome}; {row['outcome_pending']} pending; {row['outcome_unavailable']} unavailable"
-                         + (f"; failing: {', '.join(row['failed_criteria'])}" if row.get("failed_criteria") else ""))
-            for error in row.get("judge_errors", []):
-                lines.append(f"{row['id']} ({row['skill_mode']}) trial {error['attempt']}: grader {error['status']} — {error['reason']}")
-        findings_path = path.with_name("findings.json")
-        if findings_path.exists():
-            for finding in json.loads(findings_path.read_text(encoding="utf-8")):
-                lines.append(f"{finding['id']}: {finding['message']} Next: {finding['next_step']}")
-        return "<br>".join(lines)
+            groups.setdefault(row["id"], {})[row["skill_mode"]] = row
+        def outcome(row):
+            if row is None:
+                return "—"
+            parts = [f"{row['outcome_passed']}/{row['attempted']} passed"]
+            for key, label in [("outcome_failed", "failed"), ("outcome_pending", "pending"), ("outcome_unavailable", "unavailable")]:
+                if row[key]:
+                    parts.append(f"{row[key]} {label}")
+            return "; ".join(parts)
+        comparable = []
+        for case_id, sides in groups.items():
+            left, right = sides.get("without-expo"), sides.get("with-expo")
+            complete = left and right and all(row.get("paired_conditions") == "matched" and not row["outcome_pending"] and not row["outcome_unavailable"] for row in [left, right])
+            if not complete:
+                result = "Incomplete / not comparable"
+            elif left["outcome_passed"] == right["outcome_passed"]:
+                result = "Tie in this sample"
+            else:
+                result = "More passes with skills" if right["outcome_passed"] > left["outcome_passed"] else "Fewer passes with skills"
+            comparable.append(complete and left["outcome_passed"] == right["outcome_passed"])
+            label = cell(case_id) + (" (model-graded)" if any(row.get("grading") == "provisional-model" for row in sides.values()) else "")
+            lines.append(f"| {label} | {outcome(left)} | {outcome(right)} | {result} |")
+        if all(comparable):
+            lines += ["", "**Finding:** No observed outcome advantage from Expo skills on these tasks. This small sample does not establish equal reliability on harder work."]
+        lines += ["", "<details>", "<summary>Time, cost and skill delivery</summary>", "",
+                  "| Task | Median seconds: without / with | Author cost: without / with |",
+                  "|---|---:|---:|"]
+        def number(row, key, money=False):
+            value = row.get(key) if row else None
+            return "—" if value is None else (f"${value:.3f}" if money else f"{value:.1f}")
+        for case_id, sides in groups.items():
+            left, right = sides.get("without-expo"), sides.get("with-expo")
+            lines.append(f"| {cell(case_id)} | {number(left, 'median_seconds')} / {number(right, 'median_seconds')} | {number(left, 'cost_usd', True)} / {number(right, 'cost_usd', True)} |")
+        costs = {}
+        for mode in ["without-expo", "with-expo"]:
+            selected = [row for row in rows if row["skill_mode"] == mode]
+            if selected and all(isinstance(row.get("cost_usd"), (int, float)) for row in selected):
+                costs[mode] = sum(row["cost_usd"] for row in selected)
+        if len(costs) == 2:
+            lines += ["", f"Total author cost: **${costs['without-expo']:.3f} without** / **${costs['with-expo']:.3f} with**. Costs exclude grading and EAS compute."]
+        lines += ["", "Author cost is summed across trials; time is the median per trial. Advice grading remains provisional.", ""]
+        for row in rows:
+            if row["skill_mode"] == "with-expo" and "delivered_skills" in row:
+                delivered = ", ".join(f"{cell(skill)} {count}/{row['attempted']}" for skill, count in row["delivered_skills"].items()) or "no Expo skill body observed"
+                lines.append(f"- {cell(row['id'])}: {delivered}.")
+        lines += ["", "</details>"]
+        if errors:
+            lines += ["", "<details>", "<summary>Grader errors</summary>", ""]
+            for row, error in errors:
+                lines.append(f"- {cell(row['id'])} ({cell(row['skill_mode'])}) trial {error['attempt']}: grader {cell(error['status'])} — {cell(error['reason'])}")
+            lines += ["", "</details>"]
+        failed = [row for row in rows if row.get("failed_criteria")]
+        if failed:
+            lines += ["", "**Failed criteria**", ""]
+            for row in failed:
+                lines.append(f"- {cell(row['id'])} ({cell(row['skill_mode'])}): {', '.join(cell(key) for key in row['failed_criteria'])}.")
+        return "\n".join(lines)
     except (ValueError, KeyError, TypeError):
         return "Invalid focused summary; inspect job artifacts."
 
@@ -355,8 +407,8 @@ def cmd_focused_summary(args: argparse.Namespace) -> None:
     if (root / "summary.json").exists() or not (root / "main").exists():
         print(focused_summary(root / "summary.json"))
     else:
-        print("Main: " + focused_summary(root / "main/summary.json") +
-              "<br>Candidate: " + focused_summary(root / "candidate/summary.json"))
+        print("**Main catalog**\n\n" + focused_summary(root / "main/summary.json") +
+              "\n\n**Candidate catalog**\n\n" + focused_summary(root / "candidate/summary.json"))
 
 
 def build_parser() -> argparse.ArgumentParser:

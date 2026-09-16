@@ -204,7 +204,11 @@ Expo config repair, correct-config preservation, HTTP repair, and signing diagno
 Config checks use Expo’s pinned config loader against three environment settings. Signing
 advice receives provisional model judgments with quoted evidence, gated by three synthetic
 calibration answers; other advice remains pending. `findings.json` records observed differences,
-failed criteria and investigation suggestions. Judge costs are separate from author costs. These are controlled file-edit tasks, not native app validation.
+failed criteria and investigation suggestions. The PR comment groups both conditions in a
+comparison table and puts author costs, median times and delivered skills in expandable details.
+Judge costs are separate from author costs. Saved judge responses can be revalidated with the
+harness’s `replay-judgments --report DIR --out NEW_DIR` command without new model calls;
+derived reports retain provenance and do not change the original CI status. These are controlled file-edit tasks, not native app validation.
 For a larger development sample, add `-F case_id=all -F repetitions=3`. Validation and
 holdout task families require explicit `-F split=validation` or `-F split=holdout`.
 
