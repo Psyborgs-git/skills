@@ -22,8 +22,8 @@ focused_cli=eval-harness/eval_harness/evaluator/skill_invocation/focused/main.ts
 out="$(pwd)/focused-skill-eval"
 mkdir -p "$out"
 case_args=()
-if [ "${FOCUSED_CASE:-pilot}" != all ]; then
-  case_args=(--case "${FOCUSED_CASE:-pilot}")
+if [ "${FOCUSED_CASE:-signal}" != all ]; then
+  case_args=(--case "${FOCUSED_CASE:-signal}")
 fi
 
 run_side() {
@@ -31,11 +31,11 @@ run_side() {
   # The explicit branch supports macOS Bash 3.2 as well as EAS Linux.
   if [ "${#case_args[@]}" -gt 0 ]; then
     bun "$focused_cli" run --plugin "$plugin" --out "$destination" \
-      --model 'sonnet[1m]' --skill-mode "$skill_mode" --split "${FOCUSED_SPLIT:-development}" \
+      --model 'sonnet[1m]' --judge-model 'sonnet[1m]' --skill-mode "$skill_mode" --split "${FOCUSED_SPLIT:-development}" \
       --repetitions "${FOCUSED_REPETITIONS:-3}" "${case_args[@]}"
   else
     bun "$focused_cli" run --plugin "$plugin" --out "$destination" \
-      --model 'sonnet[1m]' --skill-mode "$skill_mode" --split "${FOCUSED_SPLIT:-development}" \
+      --model 'sonnet[1m]' --judge-model 'sonnet[1m]' --skill-mode "$skill_mode" --split "${FOCUSED_SPLIT:-development}" \
       --repetitions "${FOCUSED_REPETITIONS:-3}"
   fi
 }

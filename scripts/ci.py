@@ -322,13 +322,20 @@ def focused_summary(path: Path) -> str:
         rows = json.loads(path.read_text(encoding="utf-8"))
         if not rows:
             return "No focused attempts recorded."
-        return "<br>".join(
-            f"{row['id']} ({row['skill_mode']}): "
-            f"{row['outcome_passed']}/{row['outcome_passed'] + row['outcome_failed']} outcomes passed; "
-            f"{row['outcome_pending']} pending; {row['outcome_unavailable']} unavailable; "
-            f"{row['attempted']} attempted"
-            for row in rows
-        )
+        attempted = sum(row["attempted"] for row in rows)
+        graded = sum(row["outcome_passed"] + row["outcome_failed"] for row in rows)
+        lines = [f"{graded}/{attempted} outcomes graded. Model judgments are provisional; counts describe this sample."]
+        for row in rows:
+            evaluated = row["outcome_passed"] + row["outcome_failed"]
+            outcome = f"{row['outcome_passed']}/{evaluated} passed" if evaluated else "Awaiting review / evidence"
+            lines.append(f"{row['id']} ({row['skill_mode']}, {row.get('grading', 'unspecified')}): "
+                         f"{outcome}; {row['outcome_pending']} pending; {row['outcome_unavailable']} unavailable"
+                         + (f"; failing: {', '.join(row['failed_criteria'])}" if row.get("failed_criteria") else ""))
+        findings_path = path.with_name("findings.json")
+        if findings_path.exists():
+            for finding in json.loads(findings_path.read_text(encoding="utf-8")):
+                lines.append(f"{finding['id']}: {finding['message']} Next: {finding['next_step']}")
+        return "<br>".join(lines)
     except (ValueError, KeyError, TypeError):
         return "Invalid focused summary; inspect job artifacts."
 
@@ -336,6 +343,15 @@ def focused_summary(path: Path) -> str:
 # ---------------------------------------------------------------------------
 # CLI wiring
 # ---------------------------------------------------------------------------
+
+
+def cmd_focused_summary(args: argparse.Namespace) -> None:
+    root = args.report_dir
+    if (root / "summary.json").exists() or not (root / "main").exists():
+        print(focused_summary(root / "summary.json"))
+    else:
+        print("Main: " + focused_summary(root / "main/summary.json") +
+              "<br>Candidate: " + focused_summary(root / "candidate/summary.json"))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -376,6 +392,10 @@ def build_parser() -> argparse.ArgumentParser:
     verify_p.add_argument("--bundle-dir", required=True)
     verify_p.add_argument("--expect-fingerprint", required=True)
     verify_p.set_defaults(func=cmd_bundle_verify)
+
+    focused = subparsers.add_parser("focused-summary")
+    focused.add_argument("report_dir", type=Path)
+    focused.set_defaults(func=cmd_focused_summary)
 
     po = subparsers.add_parser("print-outputs")
     po.add_argument("metrics_path")

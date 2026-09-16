@@ -221,7 +221,7 @@ focused_smoke() {
     fi
     SKILL_EVAL_REMOTE=1 bun eval-harness/eval_harness/evaluator/skill_invocation/focused/main.ts run \
       --plugin "$plugin_dir" --out "$out_dir" --model "$AGENT_MODEL" \
-      --case pilot --split development --repetitions 3 --skill-mode both
+      --case signal --split development --repetitions 3 --skill-mode both --judge-model 'sonnet[1m]'
   )
 }
 

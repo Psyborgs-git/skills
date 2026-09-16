@@ -187,7 +187,10 @@ job: three attempts per case with and without Expo skills (24 attempts). Its Not
 artifact includes `focused/report.html`, outcome summaries, raw traces and frozen catalog evidence. No local EAS login is needed to trigger
 this path; it uses the existing GitHub-to-EAS connection.
 
-For focused routing and source-edit cases with configurable splits/repetitions, use:
+Add the `eval-focused` PR label to run only the focused experiment and post its own summary.
+The broader `eval` label still includes the three app-building comparisons.
+
+For configurable focused splits/repetitions, use:
 
 ```sh
 eas workflow:run .eas/workflows/skill-eval-focused.yml
@@ -196,8 +199,12 @@ eas workflow:run .eas/workflows/skill-eval-focused.yml
 This defaults to the same catalog-value pilot on EAS using the project's `production` credentials.
 Download `focused-skill-eval` and open `report.html` for outcomes, routing, costs and evidence.
 Use `-F experiment=catalog-change` to compare main against the candidate instead; that mode
-also writes `comparison.html` and per-side reports. Advice reviews remain pending, while
-the HTTP cases have executable behavior checks. These are controlled file-edit tasks, not native app validation.
+also writes `comparison.html` and per-side reports. The default `signal` experiment covers
+Expo config repair, correct-config preservation, HTTP repair, and signing diagnosis.
+Config checks use Expo’s pinned config loader against three environment settings. Signing
+advice receives provisional model judgments with quoted evidence, gated by three synthetic
+calibration answers; other advice remains pending. `findings.json` records observed differences,
+failed criteria and investigation suggestions. Judge costs are separate from author costs. These are controlled file-edit tasks, not native app validation.
 For a larger development sample, add `-F case_id=all -F repetitions=3`. Validation and
 holdout task families require explicit `-F split=validation` or `-F split=holdout`.
 

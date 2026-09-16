@@ -8,6 +8,8 @@ defaults:
     node: '22.20.0'
 
 on:
+  pull_request_labeled:
+    labels: [eval-focused]
   workflow_dispatch:
     inputs:
       experiment:
@@ -17,8 +19,8 @@ on:
         description: With/without Expo skills, or main versus candidate
       case_id:
         type: string
-        default: pilot
-        description: Case ID, pilot (four cases), or all in the selected split
+        default: signal
+        description: Case ID, signal (four graded cases), pilot, or all in the selected split
       split:
         type: choice
         options: [development, validation, holdout]
@@ -33,6 +35,8 @@ jobs:
   focused:
     runs_on: linux-medium
     environment: production
+    outputs:
+      summary: ${{ steps.summary.outputs.summary }}
     env:
       FOCUSED_EXPERIMENT: ${{ inputs.experiment }}
       FOCUSED_CASE: ${{ inputs.case_id }}
@@ -42,8 +46,12 @@ jobs:
       CI: '1'
     steps:
       - uses: eas/checkout
-      - name: Compare focused cases against main
+      - name: Run the selected focused experiment
         run: bash scripts/run-focused-evals.sh
+      - name: Summarize completed evidence
+        id: summary
+        if: ${{ always() }}
+        run: set-output summary "$(python3 scripts/ci.py focused-summary focused-skill-eval)"
       - name: Upload reports, manifests, traces and app artifacts
         if: ${{ always() }}
         uses: eas/upload_artifact
@@ -51,3 +59,20 @@ jobs:
           type: other
           name: focused-skill-eval
           path: focused-skill-eval
+
+  comment:
+    after: [focused]
+    if: ${{ github.event_name == 'pull_request' }}
+    type: github-comment
+    params:
+      payload: |
+        <!-- expo-focused-signal -->
+        ## Expo focused skill experiment
+
+        ${{ after.focused.outputs.summary }}
+
+        Counts describe a small sample. Advice judgments are provisional; config and HTTP checks are executable. No native runtime validation.
+
+        Download `focused-skill-eval` and open `report.html` for failed criteria, routing, model costs and raw evidence.
+
+        [Reports](${{ workflow.url }})
